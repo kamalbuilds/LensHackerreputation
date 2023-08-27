@@ -20,10 +20,36 @@ contract Hackreputation is PhatRollupAnchor, Ownable {
         uint numberOfLosses; // 4
     }
 
-    mapping(address => HackathonData) public hackathons;
+    mapping(string => HackathonData) public hackathons; // Mapping from profileID to HackathonData
 
     constructor(address phatAttestor) {
         _grantRole(PhatRollupAnchor.ATTESTOR_ROLE, phatAttestor);
+    }
+
+    function increaseParticipations(string calldata profileId) external onlyOwner {
+        hackathons[profileId].numberOfParticipations++;
+    }
+
+    function increaseWins(string calldata profileId) external onlyOwner {
+        hackathons[profileId].numberOfWins++;
+    }
+
+    function increaseLosses(string calldata profileId) external onlyOwner {
+        hackathons[profileId].numberOfLosses++;
+    }
+
+    // Function to get the hackathon data for a user
+    function getHackathonData(string calldata profileId) external view returns (uint, uint, uint) {
+        HackathonData storage userData = hackathons[profileId];
+        return (userData.numberOfParticipations, userData.numberOfWins, userData.numberOfLosses);
+    }
+
+// hackreputation
+    function calculateReputation(string calldata profileId) public view returns (uint) {
+        HackathonData storage userData = hackathons[profileId];
+
+        uint reputation = userData.numberOfWins * 2 - userData.numberOfLosses * 4 + userData.numberOfParticipations;
+        return reputation;
     }
 
     function setAttestor(address phatAttestor) public {
@@ -51,27 +77,14 @@ contract Hackreputation is PhatRollupAnchor, Ownable {
             action,
             (uint, uint, uint256)
         );
+        // data -> lens data
         if (respType == TYPE_RESPONSE) {
-            emit ResponseReceived(id, requests[id], data);
+            uint reputation = this.calculateReputation(requests[id]);
+            // Calculate overall hackreputation value by adding data value
+            uint overallReputation = reputation + data;
+            emit ResponseReceived(id, requests[id], overallReputation);
+        } else if (respType == TYPE_ERROR) {
             delete requests[id];
         }
-    }
-
-    function increaseParticipations(address user) external onlyOwner {
-        hackathons[user].numberOfParticipations++;
-    }
-
-    function increaseWins(address user) external onlyOwner {
-        hackathons[user].numberOfWins++;
-    }
-
-    function increaseLosses(address user) external onlyOwner {
-        hackathons[user].numberOfLosses++;
-    }
-
-    // Function to get the hackathon data for a user
-    function getHackathonData(address user) external view returns (uint, uint, uint) {
-        HackathonData storage userData = hackathons[user];
-        return (userData.numberOfParticipations, userData.numberOfWins, userData.numberOfLosses);
     }
 }
